@@ -24,7 +24,7 @@ cargo build --release
 ```
 
 # Run
-There's some issues at the moment due to using `rocket.rs`. One was in order to customize logging I instatiate using `rocket::custom`. This unfortunately disables `Rocket.toml` and environment configuration support. Customized logging is in the works, so I hope to either patch in some TLS support or wait for that feature to land. Rocket's default logging choices were suboptimal for automated parsing.
+There are some issues at the moment due to using [rocket.rs](https://rocket.rs). One was in order to customize logging I instatiate using `rocket::custom`. This unfortunately disables `Rocket.toml` and environment configuration support. Customized logging is in the works, so I hope to either patch in some TLS support or wait for that feature to land. Rocket's default logging choices were suboptimal for automated parsing.
 
 **NOTE:** When you run serve  will serve the current working directory. Be mindful of this because all files will be available, even in subdirectories.
 ```

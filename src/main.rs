@@ -3,7 +3,7 @@
 #![feature(use_extern_macros)]
 
 extern crate itertools;
-#[macro_use(log)] 
+#[macro_use(log)]
 extern crate log;
 extern crate rocket;
 extern crate time;
@@ -45,26 +45,33 @@ fn main() {
     rocket::custom(config, false)
         .attach(AdHoc::on_request(|req, _| {
             let ts = time::strftime("%Y-%m-%dT%H:%M:%S.%fZ", &time::now_utc()).unwrap();
+
             let remote_addr: String = match req.remote() {
                 Some(addr) => format!("{}", addr.ip()),
                 _ => "-".to_owned(),
             };
-            let mut referrer: &str = match req.headers().get_one("Referer") {
-                Some(referer) => referer,
+
+            let referrer: &str = match req.headers().get_one("Referer") {
+                Some(referer) => {
+                    if referer.len() == 0 {
+                        "-"
+                    } else {
+                        referer
+                    }
+                },
                 _ => "-",
             };
-            if referrer.len() == 0 {
-                referrer = "-";
-            }
 
             let user_agent: &str = match req.headers().get_one("User-Agent") {
                 Some(ua) => ua,
                 _ => "-",
             };
+
             let mut cookies = itertools::join(req.headers().get("Cookie"), ",");
             if cookies.len() == 0 {
                 cookies = "-".to_owned();
             }
+
             println!("{} {} {} {} \"{}\" \"{}\" \"{}\"", ts, remote_addr, req.method(), req.uri(), referrer, user_agent, cookies);
         }))
         .attach(AdHoc::on_response(|_, resp| {
