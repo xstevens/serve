@@ -1,6 +1,5 @@
 #![feature(plugin)]
 #![plugin(rocket_codegen)]
-#![feature(use_extern_macros)]
 
 extern crate itertools;
 #[macro_use(log)]
@@ -9,6 +8,7 @@ extern crate rocket;
 extern crate time;
 
 use std::io;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use rocket::Data;
@@ -28,10 +28,20 @@ fn files(path: PathBuf) -> Option<NamedFile> {
     NamedFile::open(&path).ok()
 }
 
-#[post("/upload/<path..>", data = "<data>")]
+#[post("/upload/<path..>", data = "<data>", rank = 10)]
 fn upload(path: PathBuf, data: Data) -> io::Result<()> {
     let path = Path::new("./upload/").join(path);
     data.stream_to_file(&path)?;
+    Ok(())
+}
+
+#[post("/", data = "<data>", rank = 1)]
+fn dump(data: Data) -> io::Result<()> {
+    let stdout = io::stdout();
+    let mut writer = stdout.lock();
+    data.stream_to(&mut writer)?;
+    writer.write(b"\n")?;
+
     Ok(())
 }
 
@@ -77,6 +87,6 @@ fn main() {
         .attach(AdHoc::on_response(|_, resp| {
             resp.set_header(Header::new("Server", "NeXTcube"));
         }))
-        .mount("/", routes![ping, files, upload])
+        .mount("/", routes![ping, files, upload, dump])
         .launch();
 }
