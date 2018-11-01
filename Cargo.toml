@@ -1,11 +1,11 @@
 [package]
 name = "serve"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Xavier Stevens <xavier.stevens@gmail.com>"]
 
 [dependencies]
-itertools = "0.7"
-log = "0.4"
+itertools = "^0.7"
+log = "^0.4"
 rocket = { version = "0.3.17", features = ["tls"] }
 rocket_codegen = "0.3.17"
-time = "0.1"
+time = "^0.1"
