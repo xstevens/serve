@@ -1,10 +1,8 @@
-#![feature(plugin)]
-#![plugin(rocket_codegen)]
+#![feature(proc_macro_hygiene, decl_macro)]
 
+#[macro_use] extern crate clap;
 extern crate itertools;
-#[macro_use(log)]
-extern crate log;
-extern crate rocket;
+#[macro_use] extern crate rocket;
 extern crate time;
 
 use std::fs;
@@ -12,8 +10,9 @@ use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use clap::{App, Arg};
 use rocket::Data;
-use rocket::config::{Config, Environment};
+use rocket::config::{Config, Environment, LoggingLevel};
 use rocket::fairing::AdHoc;
 use rocket::http::Header;
 use rocket::response::NamedFile;
@@ -70,14 +69,35 @@ r#"<!DOCTYPE html>
 }
 
 fn main() {
-    let config = Config::build(Environment::Production)
-                        .address("0.0.0.0")
-                        .port(8000)
-                        //.tls("./certs/server.pem", "./certs/server-key.pem")
-                        .finalize()
-                        .unwrap();
-    rocket::custom(config, false)
-        .attach(AdHoc::on_request(|req, _| {
+    let args = App::new("serve")
+        .version(crate_version!())
+        .about("a static HTTP server")
+        .arg(
+            Arg::with_name("cert")
+                .long("cert")
+                .value_name("CERT")
+                .help("path to TLS certificate")
+                .takes_value(true),
+        )
+        .arg(
+           Arg::with_name("key")
+                .long("key")
+                .value_name("KEY")
+                .help("path to TLS private key")
+                .takes_value(true),
+        )
+        .get_matches();
+    // configuration
+    let mut config = Config::new(Environment::Production);
+    config.set_address("0.0.0.0").unwrap();
+    config.set_port(8000);
+    config.set_log_level(LoggingLevel::Off);
+    if args.is_present("cert") && args.is_present("key") {
+        config.set_tls(args.value_of("cert").unwrap(), args.value_of("key").unwrap()).unwrap();
+    }
+    // setup rocket with custom fairing for request logging
+    rocket::custom(config)
+        .attach(AdHoc::on_request("request_log", |req, _| {
             let ts = time::strftime("%Y-%m-%dT%H:%M:%S.%fZ", &time::now_utc()).unwrap();
 
             let remote_addr: String = match req.remote() {
@@ -106,12 +126,23 @@ fn main() {
                 cookies = "-".to_owned();
             }
 
-            println!("{} {} {} {} \"{}\" \"{}\" \"{}\"", ts, remote_addr, req.method(), req.uri(), referrer, user_agent, cookies);
+            let authz: &str = match req.headers().get_one("Authorization") {
+                Some(authz_header) => {
+                    if authz_header.len() == 0 {
+                        "-"
+                    } else {
+                        authz_header
+                    }
+                },
+                _ => "-",
+            };
+
+            println!("{} {} {} {} \"{}\" \"{}\" \"{}\" \"{}\"", ts, remote_addr, req.method(), req.uri(), referrer, user_agent, cookies, authz);
         }))
-        .attach(AdHoc::on_response(|_, resp| {
+        .attach(AdHoc::on_response("server_response_header", |_, resp| {
             resp.set_header(Header::new("Server", "NeXTcube"));
         }))
         .mount("/", routes![ping, files, upload, dump])
-        .catch(catchers![not_found])
+        .register(catchers![not_found])
         .launch();
 }
