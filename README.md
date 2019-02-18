@@ -24,9 +24,9 @@ cargo build --release
 ```
 
 # Run
-There are some issues at the moment due to using [rocket.rs](https://rocket.rs). One was in order to customize logging I instatiate using `rocket::custom`. This unfortunately disables `Rocket.toml` and environment configuration support. Customized logging is in the works, so I hope to either patch in some TLS support or wait for that feature to land. Rocket's default logging choices were suboptimal for automated parsing.
+There are some issues at the moment due to using [rocket.rs](https://rocket.rs). One was in order to customize logging I instatiate using `rocket::custom`. This unfortunately disables `Rocket.toml` and environment configuration support. Customized logging is supposedly in the works, so we'll see what that looks like when it lands. Rocket's default logging choices were suboptimal for automated parsing.
 
-**NOTE:** When you run serve  will serve the current working directory. Be mindful of this because all files will be available, even in subdirectories.
+**NOTE:** When you run `serve` it currently expects to have all files in a subdirectory called `static`. This is so you don't accidentally offer up files in other subdirectories.
 ```
 ./target/release/serve
 ```
@@ -58,9 +58,19 @@ If you want to use TLS all you need to do is specify paths to a certificate and 
 serve --cert ./certs/server.pem --key ./certs/server-key.pem
 ```
 
+## Static Files
+```
+$ mkdir static
+$ echo "I am not okay." > static/areyouok
+$ serve&
+$ curl http://localhost:8000/static/areyouok
+2019-02-18T04:49:05.702926000Z 127.0.0.1 GET /static/areyouok "-" "curl/7.64.0" "-" "-"
+I am not okay.
+```
+
 # Server access log format
 Currently only the hardcode logging format is available. It is similar to an access log you might see from other servers, but is tailored to what sorts of information is useful from a penetration testing perspective.
 
-| Timestamp | Remote IP | HTTP Method | URI | Referer | User Agent | Cookies |
-|---|---|---|---|---|---|---| 
-| 2018-01-14T18:45:21.922171000Z | 127.0.0.1 | GET | /ping | "-" | "curl/7.54.0" | "-" |
+| Timestamp | Remote IP | HTTP Method | URI | Referer | User Agent | Cookies | Authorization Header |
+|---|---|---|---|---|---|---|---| 
+| 2018-01-14T18:45:21.922171000Z | 127.0.0.1 | GET | /ping | "-" | "curl/7.54.0" | "-" | "eyJhbSomeJWT" |
