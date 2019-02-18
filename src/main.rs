@@ -88,13 +88,14 @@ fn main() {
         )
         .get_matches();
     // configuration
-    let mut config = Config::new(Environment::Production);
-    config.set_address("0.0.0.0").unwrap();
-    config.set_port(8000);
-    config.set_log_level(LoggingLevel::Off);
+    let mut config_builder = Config::build(Environment::Production)
+                                .address("0.0.0.0")
+                                .port(8000)
+                                .log_level(LoggingLevel::Off);
     if args.is_present("cert") && args.is_present("key") {
-        config.set_tls(args.value_of("cert").unwrap(), args.value_of("key").unwrap()).unwrap();
+        config_builder = config_builder.tls(args.value_of("cert").unwrap(), args.value_of("key").unwrap());
     }
+    let config = config_builder.finalize().unwrap();
     // setup rocket with custom fairing for request logging
     rocket::custom(config)
         .attach(AdHoc::on_request("request_log", |req, _| {
