@@ -52,6 +52,12 @@ $ cat upload/test
 Hello, world.
 ```
 
+If you want to use TLS all you need to do is specify paths to a certificate and key using the command-line flags.
+
+```
+serve --cert ./certs/server.pem --key ./certs/server-key.pem
+```
+
 # Server access log format
 Currently only the hardcode logging format is available. It is similar to an access log you might see from other servers, but is tailored to what sorts of information is useful from a penetration testing perspective.
 
