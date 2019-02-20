@@ -31,11 +31,13 @@ fn files(path: PathBuf) -> Option<NamedFile> {
 
 #[post("/upload/<path..>", data = "<data>", rank = 10)]
 fn upload(path: PathBuf, data: Data) -> io::Result<()> {
-    let path = Path::new("./upload/").join(path);
-    if !path.exists() {
-        fs::create_dir_all(&path)?;
+    let fpath = Path::new("./upload/").join(path);
+    if let Some(dir) = fpath.parent() {
+        if !dir.exists() {
+            fs::create_dir_all(&dir)?;
+        }
     }
-    data.stream_to_file(&path)?;
+    data.stream_to_file(&fpath)?;
     Ok(())
 }
 
