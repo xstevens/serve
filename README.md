@@ -37,16 +37,13 @@ There are some issues at the moment due to using [rocket.rs](https://rocket.rs).
 ```
 $ curl http://localhost:8000/ping
 OK
-$ curl http://localhost:8000/static/src/main.rs
-...
 $ echo "Hello, world." | curl --data-binary @- http://localhost:8000/upload/test
 ```
 ## Server
 ```
 $ target/release/serve
-2018-01-14T19:07:57.143870000Z 127.0.0.1 GET /ping "-" "curl/7.54.0" "-"
-2018-01-14T19:08:03.182927000Z 127.0.0.1 GET /static/src/main.rs "-" "curl/7.54.0" "-"
-2018-01-14T19:08:07.815893000Z 127.0.0.1 POST /upload/test "-" "curl/7.54.0" "-"
+{"headers":{"accept":"*/*","host":"127.0.0.1:8000","user-agent":"curl/7.64.1"},"method":"GET","remote_addr":"127.0.0.1","ts":"2021-09-20T18:47:00.292Z","uri":"/ping"}
+{"headers":{"accept":"*/*","content-length":"12","content-type":"application/x-www-form-urlencoded","host":"127.0.0.1:8000","user-agent":"curl/7.64.1"},"method":"POST","remote_addr":"127.0.0.1","ts":"2021-09-20T18:48:29.103Z","uri":"/upload/test"}
 ^C
 $ cat upload/test
 Hello, world.
@@ -64,13 +61,9 @@ $ mkdir static
 $ echo "I am not okay." > static/areyouok
 $ serve&
 $ curl http://localhost:8000/static/areyouok
-2019-02-18T04:49:05.702926000Z 127.0.0.1 GET /static/areyouok "-" "curl/7.64.0" "-" "-"
+{"headers":{"accept":"*/*","host":"localhost:8000","user-agent":"curl/7.64.1"},"method":"GET","remote_addr":"127.0.0.1","ts":"2021-09-20T18:51:06.519Z","uri":"/static/areyouok"}
 I am not okay.
 ```
 
 # Server access log format
-Currently only the hardcode logging format is available. It is similar to an access log you might see from other servers, but is tailored to what sorts of information is useful from a penetration testing perspective.
-
-| Timestamp | Remote IP | HTTP Method | URI | Referer | User Agent | Cookies | Authorization Header |
-|---|---|---|---|---|---|---|---| 
-| 2018-01-14T18:45:21.922171000Z | 127.0.0.1 | GET | /ping | "-" | "curl/7.54.0" | "-" | "eyJhbSomeJWT" |
+In version 0.3+ the server access log dumps fields of interest as JSON.

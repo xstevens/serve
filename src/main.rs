@@ -6,6 +6,7 @@ extern crate rocket;
 extern crate chrono;
 
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use clap::{App, Arg};
@@ -17,6 +18,7 @@ use rocket::http::Header;
 use rocket::log::LogLevel;
 use rocket::response::content;
 use rocket::tokio;
+use serde_json::json;
 use tokio::fs::File;
 use tokio::io::{self, AsyncWriteExt};
 
@@ -131,54 +133,28 @@ fn rocket() -> rocket::Rocket<rocket::Build> {
                     _ => "-".to_owned(),
                 };
 
-                let referrer: &str = match req.headers().get_one("Referer") {
-                    Some(referer) => {
-                        if referer.len() == 0 {
-                            "-"
-                        } else {
-                            referer
-                        }
-                    }
-                    _ => "-",
-                };
-
-                let user_agent: &str = match req.headers().get_one("User-Agent") {
-                    Some(ua) => ua,
-                    _ => "-",
-                };
-
-                let mut cookies = itertools::join(req.headers().get("Cookie"), ",");
-                if cookies.len() == 0 {
-                    cookies = "-".to_owned();
+                // unfortunate but rocket HeaderMap is not serializable so copy
+                // the name value pairs to a HashMap and pass that to the JSON
+                // macro below
+                let mut headers = HashMap::new();
+                for h in req.headers().iter() {
+                    headers.insert(format!("{}", h.name.as_str()), format!("{}", h.value()));
                 }
 
-                let authz: &str = match req.headers().get_one("Authorization") {
-                    Some(authz_header) => {
-                        if authz_header.len() == 0 {
-                            "-"
-                        } else {
-                            authz_header
-                        }
-                    }
-                    _ => "-",
-                };
-
-                println!(
-                    "{} {} {} {} \"{}\" \"{}\" \"{}\" \"{}\"",
-                    now.to_rfc3339_opts(SecondsFormat::Millis, true),
-                    remote_addr,
-                    req.method(),
-                    req.uri(),
-                    referrer,
-                    user_agent,
-                    cookies,
-                    authz
-                );
+                let j = json!({
+                    "ts": now.to_rfc3339_opts(SecondsFormat::Millis, true),
+                    "remote_addr": remote_addr,
+                    "method": req.method().to_string(),
+                    "uri": req.uri(),
+                    "headers": &headers,
+                });
+                println!("{}", j.to_string());
             })
         }))
         .attach(AdHoc::on_response("server_response_header", |_, resp| {
             Box::pin(async move {
                 resp.set_header(Header::new("Server", "NeXTcube"));
+                resp.set_header(Header::new("Accept-CH", "Sec-CH-UA-Full-Version,Sec-CH-UA-Platform,Sec-CH-UA-Platform-Version,Sec-CH-UA-Arch,Sec-CH-UA-Bitness,Sec-CH-UA-Model"));
             })
         }))
         .mount("/", routes![ping, robots, files, upload, dump])
