@@ -138,7 +138,7 @@ fn rocket() -> rocket::Rocket<rocket::Build> {
                 // macro below
                 let mut headers = HashMap::new();
                 for h in req.headers().iter() {
-                    headers.insert(format!("{}", h.name.as_str()), format!("{}", h.value()));
+                    headers.insert(h.name.as_str().to_string(), h.value().to_string());
                 }
 
                 let j = json!({
