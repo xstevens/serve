@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
 use chrono::{DateTime, SecondsFormat, Utc};
-use clap::{App, Arg};
+use clap::{Arg, ArgGroup, Command};
 use rocket::config::Config;
 use rocket::data::{Data, ToByteUnit};
 use rocket::fairing::AdHoc;
@@ -83,44 +83,51 @@ r#"<!DOCTYPE html>
 
 #[launch]
 fn rocket() -> rocket::Rocket<rocket::Build> {
-    let args = App::new("serve")
+    let cmd = Command::new("serve")
         .version(crate_version!())
         .about("a static HTTP server")
+        .group(ArgGroup::new("tls")
+            .args(["cert", "key"])
+            .multiple(true)
+        )
         .arg(
-            Arg::with_name("cert")
+            Arg::new("cert")
                 .long("cert")
                 .value_name("CERT")
                 .help("path to TLS certificate")
-                .takes_value(true),
+                .group("tls")
+                .requires("key"),
         )
         .arg(
-            Arg::with_name("key")
+            Arg::new("key")
                 .long("key")
                 .value_name("KEY")
                 .help("path to TLS private key")
-                .takes_value(true),
+                .group("tls")
+                .requires("cert"),
         )
         .arg(
-            Arg::with_name("port")
+            Arg::new("port")
                 .long("port")
                 .value_name("PORT")
                 .default_value("8000")
                 .help("port number to listen on")
-                .takes_value(true),
-        )
-        .get_matches();
+                .value_parser(clap::value_parser!(u16).range(8000..)),
+        );
+    let matches = cmd.get_matches();
 
     // configuration
-    let port: u16 = args.value_of("port").unwrap().parse().unwrap_or(8000);
+    let port: u16 = *matches.get_one::<u16>("port").unwrap();
     let mut config = Config::figment()
         .merge(("port", port))
         .merge(("address", "0.0.0.0"))
         .merge(("log_level", LogLevel::Off))
         .merge(("cli_colors", false));
-    if args.is_present("cert") && args.is_present("key") {
+
+    if matches.contains_id("tls") {
         config = config
-            .merge(("tls.certs", args.value_of("cert").unwrap()))
-            .merge(("tls.key", args.value_of("key").unwrap()));
+            .merge(("tls.certs", matches.get_one::<String>("cert").unwrap()))
+            .merge(("tls.key", matches.get_one::<String>("key").unwrap()));
     }
 
     // setup rocket with custom fairing for request logging
