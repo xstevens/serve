@@ -63,8 +63,8 @@ async fn dump(data: Data<'_>) -> io::Result<()> {
 }
 
 #[catch(404)]
-fn not_found(_req: &rocket::Request) -> content::Html<String> {
-    content::Html(
+fn not_found(_req: &rocket::Request) -> content::RawHtml<String> {
+    content::RawHtml(
 r#"<!DOCTYPE html>
 <html>
 <head>
