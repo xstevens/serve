@@ -5,8 +5,8 @@ extern crate itertools;
 extern crate rocket;
 extern crate chrono;
 
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use clap::{Arg, ArgGroup, Command};
@@ -14,13 +14,21 @@ use rocket::config::Config;
 use rocket::data::{Data, ToByteUnit};
 use rocket::fairing::AdHoc;
 use rocket::fs::NamedFile;
-use rocket::http::Header;
+use rocket::http::{Cookie, CookieJar, Header, Status, ContentType};
 use rocket::log::LogLevel;
 use rocket::response::content;
+use rocket::response::Redirect;
+use rocket::form::Form;
 use rocket::tokio;
 use serde_json::json;
 use tokio::fs::File;
-use tokio::io::{self, AsyncWriteExt};
+use tokio::io;
+
+#[derive(FromForm)]
+struct UserLogin<'r> {
+    username: &'r str,
+    password: &'r str,
+}
 
 #[get("/ping")]
 fn ping() -> &'static str {
@@ -38,6 +46,21 @@ async fn files(path: PathBuf) -> Option<NamedFile> {
     NamedFile::open(&path).await.ok()
 }
 
+#[post("/login", data="<userlogin>", rank = 1)]
+async fn login(userlogin: Form<UserLogin<'_>>) -> (Status, (ContentType, &'static str)) {
+    let j = json!({
+        "username": userlogin.username,
+        "password": userlogin.password
+    });
+    println!("{}", j.to_string());
+    if userlogin.username == "admin" &&
+        userlogin.password == "12345678" {
+            (Status::Ok, (ContentType::Plain, "SUCCESS\r\n"))
+    } else {
+        (Status::Unauthorized, (ContentType::Plain, "FAILED\r\n"))
+    }
+}
+
 #[post("/upload/<path..>", data = "<data>", rank = 10)]
 async fn upload(path: PathBuf, data: Data<'_>) -> std::io::Result<()> {
     let fpath = Path::new("./upload/").join(path);
@@ -53,16 +76,16 @@ async fn upload(path: PathBuf, data: Data<'_>) -> std::io::Result<()> {
     Ok(())
 }
 
-#[post("/dump", data = "<data>", rank = 1)]
+#[post("/dump", data = "<data>", rank = 2)]
 async fn dump(data: Data<'_>) -> io::Result<()> {
-    let mut stdout = rocket::tokio::io::stdout();
-    data.open(1.mebibytes()).stream_to(&mut stdout).await?;
-    stdout.write(b"\n").await?;
+    let mut stdout = io::stdout();
+    data.open(64.kibibytes()).stream_to(&mut stdout).await?;
 
     Ok(())
 }
 
 #[catch(404)]
+
 fn not_found(_req: &rocket::Request) -> content::RawHtml<String> {
     content::RawHtml(
 r#"<!DOCTYPE html>
@@ -77,7 +100,8 @@ r#"<!DOCTYPE html>
         <p>The requested resource could not be found.</p>
     </div>
 </body>
-</html>"#.to_owned(),
+</html>"#
+            .to_owned(),
     )
 }
 
@@ -164,6 +188,6 @@ fn rocket() -> rocket::Rocket<rocket::Build> {
                 resp.set_header(Header::new("Accept-CH", "Sec-CH-UA-Full-Version,Sec-CH-UA-Platform,Sec-CH-UA-Platform-Version,Sec-CH-UA-Arch,Sec-CH-UA-Bitness,Sec-CH-UA-Model"));
             })
         }))
-        .mount("/", routes![ping, robots, files, upload, dump])
+        .mount("/", routes![ping, robots, files, login, upload, dump])
         .register("/", catchers![not_found])
 }

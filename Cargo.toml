@@ -5,8 +5,8 @@ authors = ["Xavier Stevens"]
 edition = "2018"
 
 [dependencies]
-clap = { version = "^4.5", features = ["cargo"] }
-itertools = "^0.13"
+clap = { version = "^4.6", features = ["cargo"] }
+itertools = "^0.14"
 log = "^0.4"
 rocket = { version = "0.5.1", features = ["tls"] }
 rocket_codegen = "0.5.1"
